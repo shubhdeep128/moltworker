@@ -1,5 +1,6 @@
 /**
  * Moltbot + Cloudflare Sandbox
+ * Version: 2026.02.14-setup-token-env
  *
  * This Worker runs Moltbot personal AI assistant in a Cloudflare Sandbox container.
  * It proxies all requests to the Moltbot Gateway's web UI and WebSocket endpoint.
