@@ -301,12 +301,20 @@ EOFPATCH
 # APPLY SETUP TOKEN (highest priority auth method)
 # ============================================================
 # Setup token enables Claude Max subscription auth (OAuth-based).
-# This is the highest priority auth method.
+# Write the setup token directly to the auth profiles file.
 if [ -n "$CLAUDE_SETUP_TOKEN" ]; then
     echo "Applying Claude setup token (subscription auth)..."
-    echo "$CLAUDE_SETUP_TOKEN" | openclaw models auth setup-token --provider anthropic 2>&1 || {
-        echo "WARNING: Failed to apply setup token, continuing without it"
-    }
+    AUTH_PROFILES_FILE="$CONFIG_DIR/auth-profiles.json"
+    cat > "$AUTH_PROFILES_FILE" << EOFAUTH
+{
+  "anthropic": {
+    "provider": "anthropic",
+    "mode": "oauth",
+    "setupToken": "$CLAUDE_SETUP_TOKEN"
+  }
+}
+EOFAUTH
+    echo "Setup token written to auth profiles"
 fi
 
 # ============================================================
