@@ -144,6 +144,42 @@ describe('buildEnvVars', () => {
     expect(result.CF_ACCOUNT_ID).toBe('acct-123');
   });
 
+  // Claude setup token
+  it('includes CLAUDE_SETUP_TOKEN when set', () => {
+    const env = createMockEnv({ CLAUDE_SETUP_TOKEN: 'cst-test-token' });
+    const result = buildEnvVars(env);
+    expect(result.CLAUDE_SETUP_TOKEN).toBe('cst-test-token');
+  });
+
+  it('does not include CLAUDE_SETUP_TOKEN when not set', () => {
+    const env = createMockEnv({});
+    const result = buildEnvVars(env);
+    expect(result.CLAUDE_SETUP_TOKEN).toBeUndefined();
+  });
+
+  // AWS Bedrock credentials
+  it('includes AWS credentials when set', () => {
+    const env = createMockEnv({
+      AWS_ACCESS_KEY_ID: 'AKIA-test',
+      AWS_SECRET_ACCESS_KEY: 'secret-test',
+      AWS_REGION: 'us-west-2',
+      AWS_SESSION_TOKEN: 'session-test',
+    });
+    const result = buildEnvVars(env);
+    expect(result.AWS_ACCESS_KEY_ID).toBe('AKIA-test');
+    expect(result.AWS_SECRET_ACCESS_KEY).toBe('secret-test');
+    expect(result.AWS_REGION).toBe('us-west-2');
+    expect(result.AWS_SESSION_TOKEN).toBe('session-test');
+  });
+
+  it('does not include AWS credentials when not set', () => {
+    const env = createMockEnv({});
+    const result = buildEnvVars(env);
+    expect(result.AWS_ACCESS_KEY_ID).toBeUndefined();
+    expect(result.AWS_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(result.AWS_REGION).toBeUndefined();
+  });
+
   it('combines all env vars correctly', () => {
     const env = createMockEnv({
       ANTHROPIC_API_KEY: 'sk-key',

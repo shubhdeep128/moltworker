@@ -23,6 +23,13 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   // Direct provider keys
   if (env.ANTHROPIC_API_KEY) envVars.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
   if (env.OPENAI_API_KEY) envVars.OPENAI_API_KEY = env.OPENAI_API_KEY;
+  // Setup token for OAuth/subscription auth (applied via CLI in start-openclaw.sh)
+  if (env.CLAUDE_SETUP_TOKEN) envVars.CLAUDE_SETUP_TOKEN = env.CLAUDE_SETUP_TOKEN;
+  // AWS Bedrock credentials (used by OpenClaw's AWS SDK credential chain)
+  if (env.AWS_ACCESS_KEY_ID) envVars.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
+  if (env.AWS_SECRET_ACCESS_KEY) envVars.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
+  if (env.AWS_REGION) envVars.AWS_REGION = env.AWS_REGION;
+  if (env.AWS_SESSION_TOKEN) envVars.AWS_SESSION_TOKEN = env.AWS_SESSION_TOKEN;
 
   // Legacy AI Gateway support: AI_GATEWAY_BASE_URL + AI_GATEWAY_API_KEY
   // When set, these override direct keys for backward compatibility

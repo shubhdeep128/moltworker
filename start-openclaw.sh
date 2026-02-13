@@ -114,6 +114,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
         AUTH_ARGS="--auth-choice apiKey --anthropic-api-key $ANTHROPIC_API_KEY"
     elif [ -n "$OPENAI_API_KEY" ]; then
         AUTH_ARGS="--auth-choice openai-api-key --openai-api-key $OPENAI_API_KEY"
+    elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+        # Bedrock uses AWS SDK credential chain, no onboard auth args needed
+        AUTH_ARGS=""
+    elif [ -n "$CLAUDE_SETUP_TOKEN" ]; then
+        # Setup token auth is applied after onboard via CLI command
+        AUTH_ARGS=""
     fi
 
     openclaw onboard --non-interactive --accept-risk \
@@ -219,6 +225,32 @@ if (process.env.CF_AI_GATEWAY_MODEL) {
     }
 }
 
+// AWS Bedrock configuration
+// When AWS credentials are set and no other provider is configured,
+// add a Bedrock provider with Claude model and set it as default
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.CLOUDFLARE_AI_GATEWAY_API_KEY) {
+    const region = process.env.AWS_REGION || 'us-east-1';
+    config.models = config.models || {};
+    config.models.providers = config.models.providers || {};
+    config.models.providers['amazon-bedrock'] = {
+        baseUrl: 'https://bedrock-runtime.' + region + '.amazonaws.com',
+        api: 'bedrock-converse-stream',
+        auth: 'aws-sdk',
+        models: [{
+            id: 'us.anthropic.claude-sonnet-4-5-20250514-v1:0',
+            name: 'Claude Sonnet 4.5 (Bedrock)',
+            reasoning: true,
+            input: ['text', 'image'],
+            contextWindow: 200000,
+            maxTokens: 8192,
+        }],
+    };
+    config.agents = config.agents || {};
+    config.agents.defaults = config.agents.defaults || {};
+    config.agents.defaults.model = { primary: 'amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250514-v1:0' };
+    console.log('Bedrock provider configured: region=' + region);
+}
+
 // Telegram configuration
 // Overwrite entire channel object to drop stale keys from old R2 backups
 // that would fail OpenClaw's strict config validation (see #47)
@@ -263,6 +295,18 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
 EOFPATCH
+
+# ============================================================
+# APPLY SETUP TOKEN (if no API key auth configured)
+# ============================================================
+# Setup token enables Claude Max subscription auth (OAuth-based).
+# Only applied when no higher-priority API key auth is available.
+if [ -n "$CLAUDE_SETUP_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY" ]; then
+    echo "No API keys configured, applying Claude setup token..."
+    echo "$CLAUDE_SETUP_TOKEN" | openclaw models auth setup-token --provider anthropic 2>&1 || {
+        echo "WARNING: Failed to apply setup token, continuing without it"
+    }
+fi
 
 # ============================================================
 # BACKGROUND SYNC LOOP
