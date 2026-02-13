@@ -9,6 +9,8 @@
 
 set -e
 
+echo "=== OpenClaw Startup - Version 2026.02.14-setup-token-env ==="
+
 if pgrep -f "openclaw gateway" > /dev/null 2>&1; then
     echo "OpenClaw gateway is already running, exiting."
     exit 0
