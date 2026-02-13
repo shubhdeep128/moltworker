@@ -301,28 +301,19 @@ EOFPATCH
 # APPLY SETUP TOKEN (highest priority auth method)
 # ============================================================
 # Setup token enables Claude Max subscription auth (OAuth-based).
-# OpenClaw can read it from ~/.openclaw/.env or we can apply it via CLI.
-# Since the CLI is interactive, let's try using expect to automate it.
+# OpenClaw reads setup tokens from ~/.openclaw/.env file.
+# This is the documented, reliable way to provide setup tokens.
 if [ -n "$CLAUDE_SETUP_TOKEN" ]; then
-    echo "Applying Claude setup token (subscription auth)..."
+    echo "Applying Claude setup token to .env file..."
 
-    # Try using expect to automate the interactive prompt
-    expect << EOFEXPECT
-spawn openclaw models auth setup-token --provider anthropic
-expect "Paste your setup-token:"
-send "$CLAUDE_SETUP_TOKEN\r"
-expect eof
-EOFEXPECT
+    # Write setup token to OpenClaw's .env file
+    ENV_FILE="$CONFIG_DIR/.env"
+    cat > "$ENV_FILE" << EOFENV
+# Setup token for Claude Max subscription auth
+ANTHROPIC_SETUP_TOKEN=$CLAUDE_SETUP_TOKEN
+EOFENV
 
-    if [ $? -eq 0 ]; then
-        echo "Setup token applied successfully"
-    else
-        echo "WARNING: expect not available, trying stdin pipe..."
-        # Fallback: try stdin (may not work if command reads from /dev/tty)
-        echo "$CLAUDE_SETUP_TOKEN" | openclaw models auth setup-token --provider anthropic 2>&1 || {
-            echo "WARNING: Failed to apply setup token, continuing without it"
-        }
-    fi
+    echo "Setup token written to $ENV_FILE"
 fi
 
 # ============================================================
