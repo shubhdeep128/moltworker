@@ -11,9 +11,11 @@ set -e
 
 echo "=== OpenClaw Startup - Version 2026.02.14-setup-token-env ==="
 
+# Kill any existing gateway processes to ensure we start fresh
 if pgrep -f "openclaw gateway" > /dev/null 2>&1; then
-    echo "OpenClaw gateway is already running, exiting."
-    exit 0
+    echo "Stopping existing OpenClaw gateway processes..."
+    pkill -f "openclaw gateway" || true
+    sleep 2
 fi
 
 CONFIG_DIR="/root/.openclaw"
