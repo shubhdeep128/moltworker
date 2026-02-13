@@ -105,7 +105,14 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo "No existing config found, running openclaw onboard..."
 
     AUTH_ARGS=""
-    if [ -n "$CLOUDFLARE_AI_GATEWAY_API_KEY" ] && [ -n "$CF_AI_GATEWAY_ACCOUNT_ID" ] && [ -n "$CF_AI_GATEWAY_GATEWAY_ID" ]; then
+    # Priority: Setup token > Bedrock > AI Gateway > Anthropic > OpenAI
+    if [ -n "$CLAUDE_SETUP_TOKEN" ]; then
+        # Setup token auth is applied after onboard via CLI command
+        AUTH_ARGS=""
+    elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+        # Bedrock uses AWS SDK credential chain, no onboard auth args needed
+        AUTH_ARGS=""
+    elif [ -n "$CLOUDFLARE_AI_GATEWAY_API_KEY" ] && [ -n "$CF_AI_GATEWAY_ACCOUNT_ID" ] && [ -n "$CF_AI_GATEWAY_GATEWAY_ID" ]; then
         AUTH_ARGS="--auth-choice cloudflare-ai-gateway-api-key \
             --cloudflare-ai-gateway-account-id $CF_AI_GATEWAY_ACCOUNT_ID \
             --cloudflare-ai-gateway-gateway-id $CF_AI_GATEWAY_GATEWAY_ID \
@@ -114,12 +121,6 @@ if [ ! -f "$CONFIG_FILE" ]; then
         AUTH_ARGS="--auth-choice apiKey --anthropic-api-key $ANTHROPIC_API_KEY"
     elif [ -n "$OPENAI_API_KEY" ]; then
         AUTH_ARGS="--auth-choice openai-api-key --openai-api-key $OPENAI_API_KEY"
-    elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
-        # Bedrock uses AWS SDK credential chain, no onboard auth args needed
-        AUTH_ARGS=""
-    elif [ -n "$CLAUDE_SETUP_TOKEN" ]; then
-        # Setup token auth is applied after onboard via CLI command
-        AUTH_ARGS=""
     fi
 
     openclaw onboard --non-interactive --accept-risk \
@@ -226,9 +227,9 @@ if (process.env.CF_AI_GATEWAY_MODEL) {
 }
 
 // AWS Bedrock configuration
-// When AWS credentials are set and no other provider is configured,
+// When AWS credentials are set and no higher-priority provider is configured,
 // add a Bedrock provider with Claude model and set it as default
-if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.CLOUDFLARE_AI_GATEWAY_API_KEY) {
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && !process.env.CLAUDE_SETUP_TOKEN) {
     const region = process.env.AWS_REGION || 'us-east-1';
     config.models = config.models || {};
     config.models.providers = config.models.providers || {};
@@ -297,12 +298,12 @@ console.log('Configuration patched successfully');
 EOFPATCH
 
 # ============================================================
-# APPLY SETUP TOKEN (if no API key auth configured)
+# APPLY SETUP TOKEN (highest priority auth method)
 # ============================================================
 # Setup token enables Claude Max subscription auth (OAuth-based).
-# Only applied when no higher-priority API key auth is available.
-if [ -n "$CLAUDE_SETUP_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY" ]; then
-    echo "No API keys configured, applying Claude setup token..."
+# This is the highest priority auth method.
+if [ -n "$CLAUDE_SETUP_TOKEN" ]; then
+    echo "Applying Claude setup token (subscription auth)..."
     echo "$CLAUDE_SETUP_TOKEN" | openclaw models auth setup-token --provider anthropic 2>&1 || {
         echo "WARNING: Failed to apply setup token, continuing without it"
     }
